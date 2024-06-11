@@ -516,7 +516,7 @@ fn skip_serializing_default_add_attr_to_field(
 
     // Add the `skip_serializing_if` attribute
     let is_equal_to_default_path =
-        quote!(#serde_with_crate_path::__private__::utils::is_equal_to_default).to_string();
+        quote!(#serde_with_crate_path::__private__::is_equal_to_default).to_string();
     let attr = parse_quote!(
         #[serde(skip_serializing_if = #is_equal_to_default_path)]
     );

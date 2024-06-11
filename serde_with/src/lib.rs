@@ -375,7 +375,7 @@ pub(crate) mod prelude {
     #![allow(unused_imports)]
 
     pub(crate) use crate::utils::duration::{DurationSigned, Sign};
-    pub use crate::{de::*, ser::*, *};
+    pub use crate::{de::*, ser::*, utils::is_equal_to_default, *};
     #[cfg(all(feature = "alloc", target_has_atomic = "ptr"))]
     pub use alloc::sync::{Arc, Weak as ArcWeak};
     #[cfg(feature = "alloc")]

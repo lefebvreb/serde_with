@@ -197,7 +197,7 @@ where
 
 /// Reurns true if and only if the provided value is equal to the default value of its type.
 #[inline]
-pub(crate) fn is_equal_to_default<T>(value: &T) -> bool
+pub fn is_equal_to_default<T>(value: &T) -> bool
 where
     T: Default + PartialEq,
 {
