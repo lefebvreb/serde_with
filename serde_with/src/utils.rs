@@ -194,3 +194,12 @@ where
     // https://github.com/rust-lang/rust/issues/61956
     Ok(unsafe { core::mem::transmute_copy::<_, [T; N]>(&arr) })
 }
+
+/// Reurns true if and only if the provided value is equal to the default value of its type.
+#[inline]
+pub(crate) fn is_equal_to_default<T>(value: &T) -> bool
+where
+    T: Default + PartialEq,
+{
+    value == &T::default()
+}

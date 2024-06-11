@@ -450,6 +450,80 @@ fn field_has_attribute(field: &Field, namespace: &str, name: &str) -> bool {
     false
 }
 
+#[proc_macro_attribute]
+pub fn skip_serializing_default(args: TokenStream, input: TokenStream) -> TokenStream {
+    #[derive(FromMeta)]
+    struct SerdeContainerOptions {
+        #[darling(rename = "crate")]
+        alt_crate_path: Option<Path>,
+    }
+
+    match NestedMeta::parse_meta_list(args.into()) {
+        Ok(list) => {
+            let container_options = match SerdeContainerOptions::from_list(&list) {
+                Ok(v) => v,
+                Err(e) => {
+                    return TokenStream::from(e.write_errors());
+                }
+            };
+
+            let serde_with_crate_path = container_options
+                .alt_crate_path
+                .unwrap_or_else(|| syn::parse_quote!(::serde_with));
+
+            // Convert any error message into a nice compiler error
+            let res = apply_function_to_struct_and_enum_fields(input, |field| {
+                skip_serializing_default_add_attr_to_field(field, &serde_with_crate_path)
+            })
+            .unwrap_or_else(|err| err.to_compile_error());
+            TokenStream::from(res)
+        }
+        Err(e) => TokenStream::from(DarlingError::from(e).write_errors()),
+    }
+}
+
+/// Add the `skip_serializing_if` annotation to each field of the struct
+fn skip_serializing_default_add_attr_to_field(
+    field: &mut Field,
+    serde_with_crate_path: &Path,
+) -> Result<(), String> {
+    let has_skip_serializing_if = field_has_attribute(field, "serde", "skip_serializing_if");
+
+    // Remove the `serialize_always` attribute
+    let mut has_always_attr = false;
+    field.attrs.retain(|attr| {
+        let has_attr = attr.path().is_ident("serialize_always");
+        has_always_attr |= has_attr;
+        !has_attr
+    });
+
+    // Error on conflicting attributes
+    if has_always_attr && has_skip_serializing_if {
+        let mut msg = r#"The attributes `serialize_always` and `serde(skip_serializing_if = "...")` cannot be used on the same field"#.to_string();
+        if let Some(ident) = &field.ident {
+            msg += ": `";
+            msg += &ident.to_string();
+            msg += "`";
+        }
+        msg += ".";
+        return Err(msg);
+    }
+
+    // Do nothing if `skip_serializing_if` or `serialize_always` is already present
+    if has_skip_serializing_if || has_always_attr {
+        return Ok(());
+    }
+
+    // Add the `skip_serializing_if` attribute
+    let is_equal_to_default_path =
+        quote!(#serde_with_crate_path::__private__::utils::is_equal_to_default).to_string();
+    let attr = parse_quote!(
+        #[serde(skip_serializing_if = #is_equal_to_default_path)]
+    );
+    field.attrs.push(attr);
+    Ok(())
+}
+
 /// Convenience macro to use the [`serde_as`] system.
 ///
 /// The [`serde_as`] system is designed as a more flexible alternative to serde's `with` annotation.
